@@ -8,3 +8,6 @@ wheels/
 
 # Virtual environments
 .venv
+dist/
+ __pycache__/
+ *.egg-info
