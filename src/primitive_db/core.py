@@ -2,10 +2,10 @@
 
 import os
 
+from primitive_db.constants import ALLOWED_TYPES, DATA_DIR
 from primitive_db.decorators import confirm_action, handle_db_errors, log_time
 from primitive_db.utils import load_table_data
 
-ALLOWED_TYPES = {"int", "str", "bool"}
 
 @handle_db_errors
 def create_table(metadata, table_name, columns):
@@ -47,7 +47,7 @@ def drop_table(metadata, table_name):
 
     del metadata[table_name]
 
-    filepath = f"data/{table_name}.json"
+    filepath = os.path.join(DATA_DIR, f"{table_name}.json")
     if os.path.exists(filepath):
         os.remove(filepath)
 

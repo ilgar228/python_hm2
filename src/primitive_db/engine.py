@@ -5,6 +5,7 @@ import shlex
 import prompt
 from prettytable import PrettyTable
 
+from primitive_db.constants import META_FILE
 from primitive_db.core import (
     create_table,
     delete,
@@ -14,58 +15,13 @@ from primitive_db.core import (
     update,
 )
 from primitive_db.decorators import create_cacher
+from primitive_db.parser import parse_condition, parse_values
 from primitive_db.utils import (
     load_metadata,
     load_table_data,
     save_metadata,
     save_table_data,
 )
-
-DB_FILE = "db_meta.json"
-
-
-def _convert_value(raw):
-    """Преобразует строковое значение к int, bool или str."""
-    if raw == "True":
-        return True
-    if raw == "False":
-        return False
-    try:
-        return int(raw)
-    except ValueError:
-        return raw
-
-
-def parse_condition(tokens):
-    """Разбирает токены вида ["age", "=", "28"] в словарь {"age": 28}.
-
-    Возвращает None при ошибке формата.
-    """
-    if len(tokens) != 3 or tokens[1] != "=":
-        print("Ошибка: неверный формат условия.")
-        return None
-    column = tokens[0]
-    value = _convert_value(tokens[2])
-    return {column: value}
-
-
-def _parse_values(args):
-    """Разбирает секцию values (...) из токенов args.
-
-    args — токены после "values", например ["(Sergei,", "28,", "True)"].
-    Возвращает список значений или None при ошибке.
-    """
-    joined = " ".join(args)
-    if not (joined.startswith("(") and joined.endswith(")")):
-        print("Ошибка: значения должны быть в скобках.")
-        return None
-
-    inner = joined[1:-1].strip()
-    if inner == "":
-        return []
-
-    raw_values = [v.strip() for v in inner.split(",")]
-    return [_convert_value(v) for v in raw_values]
 
 
 def _print_table(table_data):
@@ -103,7 +59,7 @@ def print_help():
 
 def run():
     """Главный цикл программы."""
-    metadata = load_metadata(DB_FILE)
+    metadata = load_metadata(META_FILE)
     select_cache = create_cacher()
 
     while True:
@@ -128,7 +84,7 @@ def run():
             table_name = args[1]
             columns = args[2:]
             metadata = create_table(metadata, table_name, columns)
-            save_metadata(DB_FILE, metadata)
+            save_metadata(META_FILE, metadata)
 
         elif command == "list_tables":
             if not metadata:
@@ -143,7 +99,7 @@ def run():
                 continue
             table_name = args[1]
             metadata = drop_table(metadata, table_name)
-            save_metadata(DB_FILE, metadata)
+            save_metadata(META_FILE, metadata)
             select_cache = create_cacher()
 
         elif command == "insert":
@@ -151,7 +107,7 @@ def run():
                 print(f"Некорректное значение: {user_input}. Попробуйте снова.")
                 continue
             table_name = args[2]
-            values = _parse_values(args[4:])
+            values = parse_values(args[4:])
             if values is None:
                 continue
             data = insert(metadata, table_name, values)

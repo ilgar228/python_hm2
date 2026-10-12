@@ -3,7 +3,7 @@
 import json
 import os
 
-DATA_DIR = "data"
+from primitive_db.constants import DATA_DIR
 
 
 def load_metadata(filepath):
