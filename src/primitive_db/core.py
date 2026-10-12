@@ -1,9 +1,13 @@
 """Ядро базы данных - управление таблицами"""
 
+import os
+
+from primitive_db.decorators import confirm_action, handle_db_errors, log_time
 from primitive_db.utils import load_table_data
 
 ALLOWED_TYPES = {"int", "str", "bool"}
 
+@handle_db_errors
 def create_table(metadata, table_name, columns):
     """Создаёт таблицу в metadata. Добавляет ID:int в начало.
     columns — список строк вида "имя:тип", например ["name:str", "age:int"].
@@ -30,8 +34,10 @@ def create_table(metadata, table_name, columns):
     return metadata
 
 
+@confirm_action("удаление таблицы")
+@handle_db_errors
 def drop_table(metadata, table_name):
-    """Удаляет таблицу из metadata.
+    """Удаляет таблицу из metadata и её файл данных.
 
     Если таблицы нет — печатает ошибку и возвращает metadata без изменений.
     """
@@ -40,6 +46,11 @@ def drop_table(metadata, table_name):
         return metadata
 
     del metadata[table_name]
+
+    filepath = f"data/{table_name}.json"
+    if os.path.exists(filepath):
+        os.remove(filepath)
+
     print(f'Таблица "{table_name}" успешно удалена.')
     return metadata
 
@@ -55,6 +66,8 @@ def _check_type(value, type_name):
     return False
 
 
+@log_time
+@handle_db_errors
 def insert(metadata, table_name, values):
     """Добавляет запись в таблицу.
 
@@ -94,6 +107,8 @@ def insert(metadata, table_name, values):
     return data
 
 
+@log_time
+@handle_db_errors
 def select(table_data, where_clause=None):
     """Возвращает записи, подходящие под where_clause.
 
@@ -114,6 +129,7 @@ def select(table_data, where_clause=None):
     return result
 
 
+@handle_db_errors
 def update(table_data, set_clause, where_clause):
     """Обновляет записи, подходящие под where_clause, согласно set_clause.
 
@@ -135,6 +151,8 @@ def update(table_data, set_clause, where_clause):
     return table_data
 
 
+@confirm_action("удаление записей")
+@handle_db_errors
 def delete(table_data, where_clause):
     """Удаляет записи, подходящие под where_clause.
 

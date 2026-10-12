@@ -1,6 +1,5 @@
 """Запуск, игровой цикл и парсинг команд."""
 
-
 import shlex
 
 import prompt
@@ -14,6 +13,7 @@ from primitive_db.core import (
     select,
     update,
 )
+from primitive_db.decorators import create_cacher
 from primitive_db.utils import (
     load_metadata,
     load_table_data,
@@ -90,8 +90,10 @@ def print_help():
     print("<command> drop_table <имя> - удалить таблицу")
     print("<command> insert into <имя> values (<значение1>, ...) - создать запись")
     print("<command> select from <имя> [where <столбец> = <значение>] - прочитать")
-    print("<command> update <имя> set <столбец> = <знач> " \
-    "where <столбец> = <знач> - обновить")
+    print(
+        "<command> update <имя> set <столбец> = <знач> "
+        "where <столбец> = <знач> - обновить"
+    )
     print("<command> delete from <имя> where <столбец> = <значение> - удалить запись")
     print("<command> info <имя> - информация о таблице")
     print("\nОбщие команды:")
@@ -102,6 +104,7 @@ def print_help():
 def run():
     """Главный цикл программы."""
     metadata = load_metadata(DB_FILE)
+    select_cache = create_cacher()
 
     while True:
         user_input = prompt.string("Введите команду: ")
@@ -141,9 +144,9 @@ def run():
             table_name = args[1]
             metadata = drop_table(metadata, table_name)
             save_metadata(DB_FILE, metadata)
+            select_cache = create_cacher()
 
         elif command == "insert":
-            # insert into <table> values (<val1>, <val2>, ...)
             if len(args) < 5 or args[1] != "into" or args[3] != "values":
                 print(f"Некорректное значение: {user_input}. Попробуйте снова.")
                 continue
@@ -154,9 +157,9 @@ def run():
             data = insert(metadata, table_name, values)
             if data is not None:
                 save_table_data(table_name, data)
+                select_cache = create_cacher()
 
         elif command == "select":
-            # select from <table> [where <col> = <val>]
             if len(args) < 3 or args[1] != "from":
                 print(f"Некорректное значение: {user_input}. Попробуйте снова.")
                 continue
@@ -164,7 +167,6 @@ def run():
             if table_name not in metadata:
                 print(f'Ошибка: Таблица "{table_name}" не существует.')
                 continue
-            data = load_table_data(table_name)
 
             if len(args) > 3:
                 if args[3] != "where":
@@ -176,11 +178,17 @@ def run():
             else:
                 where_clause = None
 
-            result = select(data, where_clause)
+            key_part = tuple(sorted((where_clause or {}).items()))
+            cache_key = (table_name, key_part)
+
+            def fetch():
+                data = load_table_data(table_name)
+                return select(data, where_clause)
+
+            result = select_cache(cache_key, fetch)
             _print_table(result)
 
         elif command == "update":
-            # update <table> set <col> = <val> where <col> = <val>
             if "set" not in args or "where" not in args:
                 print(f"Некорректное значение: {user_input}. Попробуйте снова.")
                 continue
@@ -203,9 +211,9 @@ def run():
             data = load_table_data(table_name)
             data = update(data, set_clause, where_clause)
             save_table_data(table_name, data)
+            select_cache = create_cacher()
 
         elif command == "delete":
-            # delete from <table> where <col> = <val>
             if len(args) < 6 or args[1] != "from" or args[3] != "where":
                 print(f"Некорректное значение: {user_input}. Попробуйте снова.")
                 continue
@@ -220,6 +228,7 @@ def run():
             data = load_table_data(table_name)
             data = delete(data, where_clause)
             save_table_data(table_name, data)
+            select_cache = create_cacher()
 
         elif command == "info":
             if len(args) < 2:
@@ -238,4 +247,3 @@ def run():
 
         else:
             print(f"Функции {command} нет. Попробуйте снова.")
-
