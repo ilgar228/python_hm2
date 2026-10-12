@@ -22,7 +22,7 @@ build-backend = "uv_build"
 [tool.ruff]
 line-length = 88
 target-version = "py312"
-exclude = ["venv", ".venv", "dist", "__pycache__"]
+exclude = ["venv", ".venv", "dist", "__pycache__", "make_cast.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
@@ -32,3 +32,4 @@ ignore = []
 dev = [
     "ruff>=0.17.0",
 ]
+
